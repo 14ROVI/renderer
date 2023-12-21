@@ -5,7 +5,7 @@ extern crate minigw;
 extern crate nalgebra as na;
 
 use bounding_box::BoundingBox;
-use canvas_triangle::CanvasTriangle;
+use canvas_triangle::{CanvasTriangle, Edge};
 
 use std::time;
 
@@ -16,16 +16,16 @@ use na::{Vector2, Vector3};
 fn main() {
     minigw::new::<u8, _>(
         "Example",
-        720,
-        720,
+        400,
+        400,
         move |_window, _input, render_texture, _imgui| {
             let frame_start = time::Instant::now();
-            let triangle = CanvasTriangle {
-                v0: Vector3::new(0.0, 0.0, 1.0),
-                v1: Vector3::new(5.0, 5.0, 1.0),
-                v2: Vector3::new(10.0, 0.0, 1.0),
-                colour: Vector3::new(1.0, 1.0, 1.0),
-            };
+            let mut triangle = CanvasTriangle::new(
+                Vector3::new(0.0, 0.0, 1.0),
+                Vector3::new(50.0, 100.0, 1.0),
+                Vector3::new(100.0, 0.0, 1.0),
+            );
+            triangle.set_colour(Vector3::new(1.0, 0.0, 0.0));
 
             let texture_bb = BoundingBox {
                 top_left: Vector2::new(0.0, render_texture.as_ref().get_height() as f64 - 1.0),
@@ -34,7 +34,7 @@ fn main() {
 
             // draw_line(render_texture, (0, 0), (100, 100), 255, 255, 255);
 
-            for _ in 0..100000 {
+            for _ in 0..10_000 {
                 draw_triangle(&render_texture, &texture_bb, &triangle);
             }
 
@@ -45,10 +45,6 @@ fn main() {
             )
         },
     );
-}
-
-fn edge_function(v0: Vector3<f64>, v1: Vector3<f64>, point: Vector3<f64>) -> f64 {
-    (point.x - v0.x) * (v1.y - v0.y) - (point.y - v0.y) * (v1.x - v0.x)
 }
 
 fn draw_triangle(
@@ -62,17 +58,51 @@ fn draw_triangle(
 
     if let Some(intersection) = triangle_bb.intersection(&texture_bb) {
         // go over each pixel in this intersection and check if its in the triangle :D
-        for y in (intersection.bottom_right.y as u32)..(intersection.top_left.y as u32) {
-            for x in (intersection.top_left.x as u32)..(intersection.bottom_right.x as u32) {
-                let point = Vector3::new(x as f64 + 0.5, y as f64 + 0.5, 1.0);
-                let w0 = edge_function(triangle.v1, triangle.v2, point);
-                let w1 = edge_function(triangle.v2, triangle.v0, point);
-                let w2 = edge_function(triangle.v0, triangle.v1, point);
 
-                if w0 >= 0.0 && w1 >= 0.0 && w2 >= 0.0 {
-                    texture.set_pixel(point.x as u32, point.y as u32, 255, 255, 255);
+        // Barycentric coordinates at minX/minY corner
+        let point = Vector3::new(
+            intersection.top_left.x + 0.5,
+            intersection.bottom_right.y + 0.5,
+            1.0,
+        );
+        let w0_edge = Edge::new(triangle.v1, triangle.v2);
+        let w1_edge = Edge::new(triangle.v2, triangle.v0);
+        let w2_edge = Edge::new(triangle.v0, triangle.v1);
+
+        let mut w0_row = w0_edge.get_at(point);
+        let mut w1_row = w1_edge.get_at(point);
+        let mut w2_row = w2_edge.get_at(point);
+
+        for y in ((intersection.bottom_right.y as u32)..(intersection.top_left.y as u32))
+            .step_by(Edge::STEP_Y_SIZE.try_into().unwrap())
+        {
+            let mut w0 = w0_row;
+            let mut w1 = w1_row;
+            let mut w2 = w2_row;
+
+            for x in ((intersection.top_left.x as u32)..(intersection.bottom_right.x as u32))
+                .step_by(Edge::STEP_X_SIZE.try_into().unwrap())
+            {
+                for i in 0..4 {
+                    let pw0 = w0[i];
+                    let pw1 = w1[i];
+                    let pw2 = w2[i];
+
+                    if pw0 >= 0.0 && pw1 >= 0.0 && pw2 >= 0.0 {
+                        texture.set_pixel(x + (i as u32), y, 255, 255, 255);
+                    }
                 }
+
+                // One step to the right
+                w0 += w0_edge.step_x;
+                w1 += w1_edge.step_x;
+                w2 += w2_edge.step_x;
             }
+
+            // One row step
+            w0_row += w0_edge.step_y;
+            w1_row += w1_edge.step_y;
+            w2_row += w2_edge.step_y;
         }
     }
 }

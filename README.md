@@ -1,0 +1,1 @@
+to enable SIMD (speeds things up quite a bit!) use the `RUSTFLAGS='-C target-cpu=native'` env variable before building.
