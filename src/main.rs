@@ -59,47 +59,41 @@ fn draw_triangle(
     if let Some(intersection) = triangle_bb.intersection(&texture_bb) {
         // go over each pixel in this intersection and check if its in the triangle :D
 
-        // Barycentric coordinates at minX/minY corner
-        let point = Vector3::new(
+        let start_point = Vector3::new(
             intersection.top_left.x + 0.5,
             intersection.bottom_right.y + 0.5,
             1.0,
         );
-        let w0_edge = Edge::new(triangle.v1, triangle.v2);
-        let w1_edge = Edge::new(triangle.v2, triangle.v0);
-        let w2_edge = Edge::new(triangle.v0, triangle.v1);
 
-        let mut w0_row = w0_edge.get_at(point);
-        let mut w1_row = w1_edge.get_at(point);
-        let mut w2_row = w2_edge.get_at(point);
+        let w0_edge = Edge::new(&triangle.v1, &triangle.v2);
+        let w1_edge = Edge::new(&triangle.v2, &triangle.v0);
+        let w2_edge = Edge::new(&triangle.v0, &triangle.v1);
+
+        let mut w0_row = w0_edge.get_at(&start_point);
+        let mut w1_row = w1_edge.get_at(&start_point);
+        let mut w2_row = w2_edge.get_at(&start_point);
 
         for y in ((intersection.bottom_right.y as u32)..(intersection.top_left.y as u32))
-            .step_by(Edge::STEP_Y_SIZE.try_into().unwrap())
+            .step_by(Edge::STEP_Y_SIZE)
         {
             let mut w0 = w0_row;
             let mut w1 = w1_row;
             let mut w2 = w2_row;
 
             for x in ((intersection.top_left.x as u32)..(intersection.bottom_right.x as u32))
-                .step_by(Edge::STEP_X_SIZE.try_into().unwrap())
+                .step_by(Edge::STEP_X_SIZE)
             {
                 for i in 0..4 {
-                    let pw0 = w0[i];
-                    let pw1 = w1[i];
-                    let pw2 = w2[i];
-
-                    if pw0 >= 0.0 && pw1 >= 0.0 && pw2 >= 0.0 {
+                    if w0[i] >= 0.0 && w1[i] >= 0.0 && w2[i] >= 0.0 {
                         texture.set_pixel(x + (i as u32), y, 255, 255, 255);
                     }
                 }
 
-                // One step to the right
                 w0 += w0_edge.step_x;
                 w1 += w1_edge.step_x;
                 w2 += w2_edge.step_x;
             }
 
-            // One row step
             w0_row += w0_edge.step_y;
             w1_row += w1_edge.step_y;
             w2_row += w2_edge.step_y;

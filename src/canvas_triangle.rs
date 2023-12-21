@@ -56,14 +56,14 @@ pub struct Edge {
     pub step_y: Vector4<f64>,
 }
 impl Edge {
-    pub const STEP_X_SIZE: u32 = 4;
-    pub const STEP_Y_SIZE: u32 = 1;
+    pub const STEP_X_SIZE: usize = 4;
+    pub const STEP_Y_SIZE: usize = 1;
 
-    pub fn edge_function(v0: Vector3<f64>, v1: Vector3<f64>, point: Vector3<f64>) -> f64 {
+    pub fn edge_function(v0: &Vector3<f64>, v1: &Vector3<f64>, point: &Vector3<f64>) -> f64 {
         (v1.x - v0.x) * (point.y - v0.y) - (v1.y - v0.y) * (point.x - v0.x)
     }
 
-    pub fn new(v0: Vector3<f64>, v1: Vector3<f64>) -> Self {
+    pub fn new(v0: &Vector3<f64>, v1: &Vector3<f64>) -> Self {
         let a = v0.y - v1.y;
         let b = v1.x - v0.x;
         let c = (v0.x * v1.y) - (v0.y * v1.x);
@@ -80,12 +80,10 @@ impl Edge {
         }
     }
 
-    pub fn get_at(&self, point: Vector3<f64>) -> Vector4<f64> {
+    pub fn get_at(&self, point: &Vector3<f64>) -> Vector4<f64> {
         let x = Vector4::repeat(point.x) + Vector4::new(0.0, 1.0, 2.0, 3.0);
         let y = Vector4::repeat(point.y);
 
-        return Vector4::repeat(self.a).component_mul(&x)
-            + Vector4::repeat(self.b).component_mul(&y)
-            + Vector4::repeat(self.c);
+        return self.a * x + self.b * y + Vector4::repeat(self.c);
     }
 }
