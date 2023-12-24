@@ -1,11 +1,14 @@
 mod bounding_box;
+mod canvas;
 mod canvas_triangle;
 
 extern crate minigw;
 extern crate nalgebra as na;
 
 use bounding_box::BoundingBox;
+use canvas::{Canvas, DrawCanvas};
 use canvas_triangle::{CanvasTriangle, Edge};
+use na::SimdPartialOrd;
 
 use std::time;
 
@@ -19,7 +22,6 @@ fn main() {
         400,
         400,
         move |_window, _input, render_texture, _imgui| {
-            let frame_start = time::Instant::now();
             let mut triangle = CanvasTriangle::new(
                 Vector3::new(0.0, 0.0, 1.0),
                 Vector3::new(50.0, 100.0, 1.0),
@@ -27,43 +29,42 @@ fn main() {
             );
             triangle.set_colour(Vector3::new(1.0, 0.0, 0.0));
 
+            let mut canvas = Canvas::new(
+                render_texture.as_ref().get_width(),
+                render_texture.as_ref().get_height(),
+            );
+
             let texture_bb = BoundingBox {
-                top_left: Vector2::new(0.0, render_texture.as_ref().get_height() as f64 - 1.0),
-                bottom_right: Vector2::new(render_texture.as_ref().get_width() as f64 - 1.0, 0.0),
+                top: render_texture.as_ref().get_height() as f64 - 1.0,
+                right: render_texture.as_ref().get_width() as f64 - 1.0,
+                bottom: 0.0,
+                left: 0.0,
             };
 
-            // draw_line(render_texture, (0, 0), (100, 100), 255, 255, 255);
+            let frame_start = time::Instant::now();
 
             for _ in 0..10_000 {
-                draw_triangle(&render_texture, &texture_bb, &triangle);
+                draw_triangle(&mut canvas, &texture_bb, &triangle);
             }
 
             let frame_end = time::Instant::now();
             println!(
                 "frame took: {:}ms",
                 frame_end.duration_since(frame_start).as_millis()
-            )
+            );
+
+            render_texture.as_mut().draw_canvas(&canvas);
         },
     );
 }
 
-fn draw_triangle(
-    texture: &RcCell<RenderTexture<u8>>,
-    texture_bb: &BoundingBox,
-    triangle: &CanvasTriangle,
-) {
-    let mut texture = texture.as_mut();
-
+fn draw_triangle(canvas: &mut Canvas, texture_bb: &BoundingBox, triangle: &CanvasTriangle) {
     let triangle_bb = triangle.bounding_box();
 
     if let Some(intersection) = triangle_bb.intersection(&texture_bb) {
         // go over each pixel in this intersection and check if its in the triangle :D
 
-        let start_point = Vector3::new(
-            intersection.top_left.x + 0.5,
-            intersection.bottom_right.y + 0.5,
-            1.0,
-        );
+        let start_point = Vector3::new(intersection.left + 0.5, intersection.bottom + 0.5, 1.0);
 
         let w0_edge = Edge::new(&triangle.v1, &triangle.v2);
         let w1_edge = Edge::new(&triangle.v2, &triangle.v0);
@@ -73,19 +74,20 @@ fn draw_triangle(
         let mut w1_row = w1_edge.get_at(&start_point);
         let mut w2_row = w2_edge.get_at(&start_point);
 
-        for y in ((intersection.bottom_right.y as u32)..(intersection.top_left.y as u32))
-            .step_by(Edge::STEP_Y_SIZE)
-        {
+        let min_y = intersection.bottom as usize;
+        let max_y = intersection.top as usize;
+        let min_x = intersection.left as usize;
+        let max_x = intersection.right as usize;
+
+        for y in (min_y..max_y).step_by(Edge::STEP_Y_SIZE) {
             let mut w0 = w0_row;
             let mut w1 = w1_row;
             let mut w2 = w2_row;
 
-            for x in ((intersection.top_left.x as u32)..(intersection.bottom_right.x as u32))
-                .step_by(Edge::STEP_X_SIZE)
-            {
-                for i in 0..4 {
+            for x in (min_x..max_x).step_by(Edge::STEP_X_SIZE) {
+                for i in 0..Edge::STEP_X_SIZE {
                     if w0[i] >= 0.0 && w1[i] >= 0.0 && w2[i] >= 0.0 {
-                        texture.set_pixel(x + (i as u32), y, 255, 255, 255);
+                        canvas.set_pixel((x + i) as u32, y as u32, 255, 255, 255, 1.0);
                     }
                 }
 

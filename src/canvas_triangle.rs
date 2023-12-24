@@ -42,8 +42,10 @@ impl CanvasTriangle {
         let bottom = self.v0.y.min(self.v1.y).min(self.v2.y);
 
         BoundingBox {
-            top_left: Vector2::new(left, top),
-            bottom_right: Vector2::new(right, bottom),
+            top,
+            right,
+            bottom,
+            left,
         }
     }
 }
