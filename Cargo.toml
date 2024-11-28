@@ -9,5 +9,5 @@ edition = "2021"
 debug = 1
 
 [dependencies]
-minigw = "0.0.6"
+minifb = "0.27.0"
 nalgebra = "0.32.3"

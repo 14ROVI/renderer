@@ -1,5 +1,3 @@
-use minigw::RenderTexture;
-
 pub struct Canvas {
     width: u32,
     height: u32,
@@ -18,6 +16,22 @@ impl Canvas {
 
     pub fn get_pixels(&self) -> Vec<u8> {
         self.pixel_buffer.clone()
+    }
+
+    pub fn get_canvas_buffer(&self) -> Vec<u32> {
+        let mut buffer: Vec<u32> = vec![];
+        buffer.reserve((self.width * self.height * 4) as usize);
+
+        for i in 0..((self.width * self.height) as usize) {
+            buffer.push(
+                (255 << 24)
+                    + ((self.pixel_buffer[3 * i + 0] as u32) << 16)
+                    + ((self.pixel_buffer[3 * i + 1] as u32) << 8)
+                    + (self.pixel_buffer[3 * i + 2] as u32),
+            );
+        }
+
+        buffer
     }
 
     pub fn get_width(&self) -> u32 {
@@ -56,15 +70,15 @@ impl Canvas {
     }
 }
 
-pub trait DrawCanvas {
-    fn draw_canvas(&mut self, canvas: &Canvas);
-}
-impl DrawCanvas for RenderTexture<u8> {
-    fn draw_canvas(&mut self, canvas: &Canvas) {
-        for (i, pixel) in canvas.get_pixels().chunks(3).enumerate() {
-            let x = i as u32 % canvas.width;
-            let y = i as u32 / canvas.width;
-            self.set_pixel(x, y, pixel[0], pixel[1], pixel[2]);
-        }
-    }
-}
+// pub trait DrawCanvas {
+//     fn draw_canvas(&mut self, canvas: &Canvas);
+// }
+// impl DrawCanvas for RenderTexture<u8> {
+//     fn draw_canvas(&mut self, canvas: &Canvas) {
+//         for (i, pixel) in canvas.get_pixels().chunks(3).enumerate() {
+//             let x = i as u32 % canvas.width;
+//             let y = i as u32 / canvas.width;
+//             self.set_pixel(x, y, pixel[0], pixel[1], pixel[2]);
+//         }
+//     }
+// }

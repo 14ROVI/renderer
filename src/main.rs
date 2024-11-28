@@ -2,60 +2,67 @@ mod bounding_box;
 mod canvas;
 mod canvas_triangle;
 
-extern crate minigw;
 extern crate nalgebra as na;
 
+use minifb::{Key, ScaleMode, Window, WindowOptions};
+
 use bounding_box::BoundingBox;
-use canvas::{Canvas, DrawCanvas};
+use canvas::Canvas;
 use canvas_triangle::{CanvasTriangle, Edge};
 use na::SimdPartialOrd;
-
+use na::{Vector2, Vector3};
 use std::time;
 
-use minigw::RcCell;
-use minigw::RenderTexture;
-use na::{Vector2, Vector3};
-
 fn main() {
-    minigw::new::<u8, _>(
-        "Example",
+    let mut window = Window::new(
+        "Trongles",
         400,
         400,
-        move |_window, _input, render_texture, _imgui| {
-            let mut triangle = CanvasTriangle::new(
-                Vector3::new(0.0, 0.0, 1.0),
-                Vector3::new(50.0, 100.0, 1.0),
-                Vector3::new(100.0, 0.0, 1.0),
-            );
-            triangle.set_colour(Vector3::new(1.0, 0.0, 0.0));
-
-            let mut canvas = Canvas::new(
-                render_texture.as_ref().get_width(),
-                render_texture.as_ref().get_height(),
-            );
-
-            let texture_bb = BoundingBox {
-                top: render_texture.as_ref().get_height() as f64 - 1.0,
-                right: render_texture.as_ref().get_width() as f64 - 1.0,
-                bottom: 0.0,
-                left: 0.0,
-            };
-
-            let frame_start = time::Instant::now();
-
-            for _ in 0..10_000 {
-                draw_triangle(&mut canvas, &texture_bb, &triangle);
-            }
-
-            let frame_end = time::Instant::now();
-            println!(
-                "frame took: {:}ms",
-                frame_end.duration_since(frame_start).as_millis()
-            );
-
-            render_texture.as_mut().draw_canvas(&canvas);
+        WindowOptions {
+            resize: true,
+            scale_mode: ScaleMode::UpperLeft,
+            ..WindowOptions::default()
         },
-    );
+    )
+    .expect("Unable to create the window");
+
+    while window.is_open() && !window.is_key_down(Key::Escape) {
+        let mut triangle = CanvasTriangle::new(
+            Vector3::new(0.0, 0.0, 1.0),
+            Vector3::new(50.0, 100.0, 1.0),
+            Vector3::new(100.0, 0.0, 1.0),
+        );
+        triangle.set_colour(Vector3::new(1.0, 0.0, 0.0));
+
+        let mut canvas = Canvas::new(window.get_size().0 as u32, window.get_size().1 as u32);
+
+        let texture_bb = BoundingBox {
+            top: canvas.get_height() as f64 - 1.0,
+            right: canvas.get_width() as f64 - 1.0,
+            bottom: 0.0,
+            left: 0.0,
+        };
+
+        let frame_start = time::Instant::now();
+
+        for _ in 0..10_000 {
+            draw_triangle(&mut canvas, &texture_bb, &triangle);
+        }
+
+        let frame_end = time::Instant::now();
+        println!(
+            "frame took: {:}ms",
+            frame_end.duration_since(frame_start).as_millis()
+        );
+
+        window
+            .update_with_buffer(
+                &canvas.get_canvas_buffer(),
+                canvas.get_width() as usize,
+                canvas.get_height() as usize,
+            )
+            .unwrap();
+    }
 }
 
 fn draw_triangle(canvas: &mut Canvas, texture_bb: &BoundingBox, triangle: &CanvasTriangle) {
@@ -103,19 +110,19 @@ fn draw_triangle(canvas: &mut Canvas, texture_bb: &BoundingBox, triangle: &Canva
     }
 }
 
-fn draw_line(t: RcCell<RenderTexture<u8>>, s: (i64, i64), e: (i64, i64), r: u8, g: u8, b: u8) {
-    let mut t = t.as_mut();
+// fn draw_line(t: RcCell<RenderTexture<u8>>, s: (i64, i64), e: (i64, i64), r: u8, g: u8, b: u8) {
+//     let mut t = t.as_mut();
 
-    let dx = (e.0 - s.0) as f64;
-    let dy = (e.1 - s.1) as f64;
+//     let dx = (e.0 - s.0) as f64;
+//     let dy = (e.1 - s.1) as f64;
 
-    let step_x = dx / dx.abs();
-    let step_y = dy / dy.abs();
+//     let step_x = dx / dx.abs();
+//     let step_y = dy / dy.abs();
 
-    for i in s.0..(e.0 + 1) {
-        let x = (s.0 + i) as f64 * step_x;
-        let y = (s.1 + i) as f64 * step_y;
-        println!("{}, {}", x, y);
-        t.set_pixel(x as u32, y as u32, r, g, b);
-    }
-}
+//     for i in s.0..(e.0 + 1) {
+//         let x = (s.0 + i) as f64 * step_x;
+//         let y = (s.1 + i) as f64 * step_y;
+//         println!("{}, {}", x, y);
+//         t.set_pixel(x as u32, y as u32, r, g, b);
+//     }
+// }
